@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Next-Level Weather App 🌤️</title>
+  <style>
+    :root {
+      --bg-light: #f0f0f0;
+      --text-light: #222;
+      --bg-dark: #282c34;
+      --text-dark: #eee;
+      --primary-color: #007acc;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-dark);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 2rem;
+      transition: background 0.5s, color 0.5s;
+    }
+
+    body.light {
+      background: var(--bg-light);
+      color: var(--text-light);
+    }
+
+    h1 {
+      margin-bottom: 1rem;
+    }
+
+    input, button {
+      font-size: 1.2rem;
+      padding: 0.5rem 1rem;
+      margin: 0.5rem 0.5rem 1rem 0;
+      border-radius: 8px;
+      border: none;
+    }
+
+    input {
+      width: 200px;
+      max-width: 90vw;
+    }
+
+    button {
+      background: var(--primary-color);
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #005f99;
+    }
+
+    #weatherInfo {
+      margin-top: 1.5rem;
+      font-size: 1.3rem;
+      text-align: center;
+      max-width: 320px;
+    }
+
+    #weatherIcon {
+      width: 100px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+
+    #modeToggle {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 0.3rem 0.6rem;
+      font-size: 1rem;
+      border-radius: 6px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    #modeToggle:hover {
+      background: #005f99;
+    }
+  </style>
+</head>
+<body>
+  <button id="modeToggle">Light Mode</button>
+  <h1>Next-Level Weather App 🌤️</h1>
+
+  <input type="text" id="cityInput" placeholder="Enter city name" />
+  <button id="getWeatherBtn">Get Weather</button>
+
+  <div id="weatherInfo"></div>
+
+  <script>
+    const API_KEY = 'YOUR_OPENWEATHERMAP_API_KEY_HERE'; // <--- add your key here
+
+    const body = document.body;
+    const modeToggle = document.getElementById('modeToggle');
+    const cityInput = document.getElementById('cityInput');
+    const getWeatherBtn = document.getElementById('getWeatherBtn');
+    const weatherInfo = document.getElementById('weatherInfo');
+
+    // Toggle dark/light mode
+    function toggleMode() {
+      if (body.classList.contains('light')) {
+        body.classList.remove('light');
+        modeToggle.textContent = 'Light Mode';
+      } else {
+        body.classList.add('light');
+        modeToggle.textContent = 'Dark Mode';
+      }
+    }
+    modeToggle.onclick = toggleMode;
+
+    // Save theme choice
+    if (localStorage.getItem('theme') === 'light') {
+      body.classList.add('light');
+      modeToggle.textContent = 'Dark Mode';
+    }
+    modeToggle.onclick = () => {
+      toggleMode();
+      localStorage.setItem('theme', body.classList.contains('light') ? 'light' : 'dark');
+    };
+
+    // Save last city to localStorage
+    function saveCity(city) {
+      localStorage.setItem('lastCity', city);
+    }
+    function loadLastCity() {
+      return localStorage.getItem('lastCity');
+    }
+
+    // Build weather HTML
+    function renderWeather(data) {
+      weatherInfo.innerHTML = `
+        <h2>${data.name}, ${data.sys.country}</h2>
+        <img id="weatherIcon" src="https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png" alt="Weather icon" />
+        <p><strong>${Math.round(data.main.temp)}°C</strong> - ${data.weather[0].description}</p>
+        <p>Feels like: ${Math.round(data.main.feels_like)}°C</p>
+        <p>Humidity: ${data.main.humidity}%</p>
+        <p>Wind speed: ${data.wind.speed} m/s</p>
+      `;
+    }
+
+    // Fetch weather by city name
+    async function fetchWeather(city) {
+      weatherInfo.textContent = 'Loading...';
+      try {
+        const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric`);
+        if (!res.ok) {
+          weatherInfo.textContent = 'City not found or API error.';
+          return;
+        }
+        const data = await res.json();
+        renderWeather(data);
+        saveCity(city);
+      } catch {
+        weatherInfo.textContent = 'Failed to fetch weather data.';
+      }
+    }
+
+    // Fetch weather by coords
+    async function fetchWeatherByCoords(lat, lon) {
+      weatherInfo.textContent = 'Loading your location weather...';
+      try {
+        const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);
+        if (!res.ok) {
+          weatherInfo.textContent = 'Failed to get weather for your location.';
+          return;
+        }
+        const data = await res.json();
+        renderWeather(data);
+        saveCity(data.name);
+        cityInput.value = data.name;
+      } catch {
+        weatherInfo.textContent = 'Failed to fetch weather data.';
+      }
+    }
+
+    // Event listeners
+    getWeatherBtn.onclick = () => {
+      const city = cityInput.value.trim();
+      if (!city) return alert('Please enter a city name!');
+      fetchWeather(city);
+    };
+
+    cityInput.addEventListener('keypress', e => {
+      if (e.key === 'Enter') getWeatherBtn.click();
+    });
+
+    // On page load: try geolocation, fallback to last city or blank
+    window.onload = () => {
+      const lastCity = loadLastCity();
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          pos => fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
+          () => {
+            if (lastCity) {
+              cityInput.value = lastCity;
+              fetchWeather(lastCity);
+            }
+          }
+        );
+      } else if (lastCity) {
+        cityInput.value = lastCity;
+        fetchWeather(lastCity);
+      }
+    };
+  </script>
+</body>
+</html>
